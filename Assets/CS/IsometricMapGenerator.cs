@@ -22,6 +22,13 @@ public class IsometricMapGenerator : MonoBehaviour
     [Header("타일 프리팹")]
     public GameObject tilePrefab;
 
+    [Header("스무딩 필터 반복 횟수")]
+    public int smoothingIterations = 3;
+
+    [Header("경계 흔들림 설정")]
+    public float boundaryNoiseScale = 0.1f;
+    public float boundaryOffsetAmount = 0.5f;
+
     [Header("바이옴 리스트")]
     public List<Biome> biomes = new List<Biome>()
     {
@@ -31,9 +38,10 @@ public class IsometricMapGenerator : MonoBehaviour
         new Biome() { biomeName = "Lava", biomeColor = new Color(0.6f, 0.1f, 0.1f) }
     };
 
-    [Header("물 색상")]
-    public Color waterColor = new Color(0.2f, 0.4f, 0.8f); // 얕은 바다
-    public Color deepWaterColor = new Color(0f, 0.1f, 0.4f); // 깊은 바다
+    [Header("바다 색상")]
+    public Color deepWaterColor = new Color(0f, 0.1f, 0.4f);
+    public Color normalWaterColor = new Color(0.2f, 0.4f, 0.8f);
+    public Color shallowWaterColor = new Color(0.4f, 0.7f, 1f);
 
     private float offsetX;
     private float offsetY;
@@ -64,7 +72,6 @@ public class IsometricMapGenerator : MonoBehaviour
         biomeMap = new int[mapWidth, mapHeight];
         isLand = new bool[mapWidth, mapHeight];
 
-        // 바다/땅 구분
         for (int x = 0; x < mapWidth; x++)
         {
             for (int y = 0; y < mapHeight; y++)
@@ -78,37 +85,49 @@ public class IsometricMapGenerator : MonoBehaviour
                 float detailNoise = Mathf.PerlinNoise((x + offsetX + 9999) * noiseScale * 3f, (y + offsetY + 9999) * noiseScale * 3f);
                 float mixedNoise = Mathf.Lerp(baseNoise, detailNoise, 0.4f);
 
+                float noiseWeight = islandMask > 0.4f ? 1f : 0.5f;
                 float jitterSeed = Mathf.Sin((x + 1) * 12.9898f + (y + 1) * 78.233f) * 43758.5453f;
                 float jitter = (jitterSeed - Mathf.Floor(jitterSeed)) * 0.15f - 0.075f;
 
-                float finalValue = Mathf.Clamp01(mixedNoise * islandMask + jitter);
+                float finalValue = Mathf.Clamp01(mixedNoise * islandMask * noiseWeight + jitter);
 
                 if (finalValue < 0.1f)
                 {
-                    biomeMap[x, y] = -2; // 깊은 바다
+                    biomeMap[x, y] = -3;
                     isLand[x, y] = false;
                 }
-                else if (finalValue < 0.3f)
+                else if (finalValue < 0.28f)
                 {
-                    biomeMap[x, y] = 0; // 얕은 바다
+                    biomeMap[x, y] = 0;
+                    isLand[x, y] = false;
+                }
+                else if (finalValue < 0.38f)
+                {
+                    biomeMap[x, y] = -2;
                     isLand[x, y] = false;
                 }
                 else
                 {
-                    biomeMap[x, y] = -1; // 미할당 땅
+                    biomeMap[x, y] = -1;
                     isLand[x, y] = true;
                 }
             }
         }
 
         RegionGrowBiomes();
+        ApplyBoundaryNoise();
+
+        for (int i = 0; i < smoothingIterations; i++)
+        {
+            SmoothBiomeMap();
+        }
+
         CreateTiles();
     }
 
     void RegionGrowBiomes()
     {
         System.Random rand = new System.Random(seed);
-
         int seedsPerBiome = 5;
 
         List<Vector2Int> landPositions = new List<Vector2Int>();
@@ -129,7 +148,7 @@ public class IsometricMapGenerator : MonoBehaviour
                 Vector2Int seedPos = landPositions[idx];
                 landPositions.RemoveAt(idx);
 
-                biomeMap[seedPos.x, seedPos.y] = i + 1; // 바이옴 인덱스는 1부터
+                biomeMap[seedPos.x, seedPos.y] = i + 1;
                 queue.Enqueue(seedPos);
             }
         }
@@ -159,7 +178,88 @@ public class IsometricMapGenerator : MonoBehaviour
         for (int x = 0; x < mapWidth; x++)
             for (int y = 0; y < mapHeight; y++)
                 if (isLand[x, y] && biomeMap[x, y] == -1)
-                    biomeMap[x, y] = 1; // 기본 바이옴
+                    biomeMap[x, y] = 1;
+    }
+
+    void ApplyBoundaryNoise()
+    {
+        int[,] newBiomeMap = (int[,])biomeMap.Clone();
+
+        for (int x = 0; x < mapWidth; x++)
+        {
+            for (int y = 0; y < mapHeight; y++)
+            {
+                int currentBiome = biomeMap[x, y];
+                if (currentBiome <= 0) continue;
+
+                bool isBoundary = false;
+                for (int nx = x - 1; nx <= x + 1 && !isBoundary; nx++)
+                {
+                    for (int ny = y - 1; ny <= y + 1 && !isBoundary; ny++)
+                    {
+                        if (nx < 0 || nx >= mapWidth || ny < 0 || ny >= mapHeight) continue;
+                        if (biomeMap[nx, ny] != currentBiome && biomeMap[nx, ny] > 0)
+                        {
+                            isBoundary = true;
+                        }
+                    }
+                }
+
+                if (isBoundary)
+                {
+                    float noiseValue = Mathf.PerlinNoise((x + offsetX) * boundaryNoiseScale, (y + offsetY) * boundaryNoiseScale);
+                    if (noiseValue > 0.5f + boundaryOffsetAmount * 0.5f)
+                    {
+                        int randomBiome = Mathf.Clamp(Mathf.RoundToInt(noiseValue * biomes.Count), 1, biomes.Count);
+                        if (randomBiome != currentBiome)
+                            newBiomeMap[x, y] = randomBiome;
+                    }
+                }
+            }
+        }
+
+        biomeMap = newBiomeMap;
+    }
+
+    void SmoothBiomeMap()
+    {
+        int[,] newBiomeMap = new int[mapWidth, mapHeight];
+
+        for (int x = 0; x < mapWidth; x++)
+        {
+            for (int y = 0; y < mapHeight; y++)
+            {
+                Dictionary<int, int> countMap = new Dictionary<int, int>();
+
+                for (int nx = x - 1; nx <= x + 1; nx++)
+                {
+                    for (int ny = y - 1; ny <= y + 1; ny++)
+                    {
+                        if (nx < 0 || nx >= mapWidth || ny < 0 || ny >= mapHeight) continue;
+
+                        int biome = biomeMap[nx, ny];
+                        if (!countMap.ContainsKey(biome))
+                            countMap[biome] = 0;
+                        countMap[biome]++;
+                    }
+                }
+
+                int maxCount = 0;
+                int dominantBiome = biomeMap[x, y];
+                foreach (var pair in countMap)
+                {
+                    if (pair.Value > maxCount)
+                    {
+                        maxCount = pair.Value;
+                        dominantBiome = pair.Key;
+                    }
+                }
+
+                newBiomeMap[x, y] = dominantBiome;
+            }
+        }
+
+        biomeMap = newBiomeMap;
     }
 
     void CreateTiles()
@@ -174,13 +274,17 @@ public class IsometricMapGenerator : MonoBehaviour
 
                 int biomeIndex = biomeMap[x, y];
 
-                if (biomeIndex == -2)
+                if (biomeIndex == -3)
                 {
                     sr.color = deepWaterColor;
                 }
                 else if (biomeIndex == 0)
                 {
-                    sr.color = waterColor;
+                    sr.color = normalWaterColor;
+                }
+                else if (biomeIndex == -2)
+                {
+                    sr.color = shallowWaterColor;
                 }
                 else if (biomeIndex > 0 && biomeIndex <= biomes.Count)
                 {
@@ -188,7 +292,7 @@ public class IsometricMapGenerator : MonoBehaviour
                 }
                 else
                 {
-                    sr.color = Color.magenta; // 에러 디버깅용
+                    sr.color = Color.magenta;
                 }
             }
         }

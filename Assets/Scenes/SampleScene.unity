@@ -455,12 +455,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4d4bea54feef54de99b075d1b138abf4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mapWidth: 100
-  mapHeight: 100
-  noiseScale: 0.05
+  mapWidth: 300
+  mapHeight: 300
+  noiseScale: 0.02
   islandFactor: 0.7
   seed: 0
   tilePrefab: {fileID: 6204390306752857239, guid: 3106aaa9af6404a43bb774a93c80212f, type: 3}
+  smoothingIterations: 2
+  boundaryNoiseScale: 1
+  boundaryOffsetAmount: 0.1
   biomes:
   - biomeName: Forest
     biomeColor: {r: 0.2, g: 0.6, b: 0.2, a: 1}
@@ -470,8 +473,9 @@ MonoBehaviour:
     biomeColor: {r: 1, g: 1, b: 1, a: 1}
   - biomeName: Lava
     biomeColor: {r: 0.6, g: 0.1, b: 0.1, a: 1}
-  waterColor: {r: 0, g: 0, b: 1, a: 1}
   deepWaterColor: {r: 0, g: 0.1, b: 0.4, a: 1}
+  normalWaterColor: {r: 0.2, g: 0.4, b: 0.8, a: 1}
+  shallowWaterColor: {r: 0.4, g: 0.7, b: 1, a: 1}
 --- !u!4 &1229774691
 Transform:
   m_ObjectHideFlags: 0
