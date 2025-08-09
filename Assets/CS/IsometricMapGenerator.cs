@@ -1,11 +1,12 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Tilemaps;
 
 [System.Serializable]
 public class Biome
 {
     public string biomeName;
-    public Color biomeColor = Color.white;
+    public TileBase biomeTile;  // 타일맵용 타일 추가
 }
 
 public class IsometricMapGenerator : MonoBehaviour
@@ -19,8 +20,8 @@ public class IsometricMapGenerator : MonoBehaviour
     [Header("Seed 설정 (0 = 랜덤 시드)")]
     public int seed = 0;
 
-    [Header("타일 프리팹")]
-    public GameObject tilePrefab;
+    [Header("타일맵")]
+    public Tilemap tilemap;
 
     [Header("스무딩 필터 반복 횟수")]
     public int smoothingIterations = 3;
@@ -32,16 +33,16 @@ public class IsometricMapGenerator : MonoBehaviour
     [Header("바이옴 리스트")]
     public List<Biome> biomes = new List<Biome>()
     {
-        new Biome() { biomeName = "Forest", biomeColor = new Color(0.2f, 0.6f, 0.2f) },
-        new Biome() { biomeName = "Desert", biomeColor = new Color(1f, 0.9f, 0.4f) },
-        new Biome() { biomeName = "Snow", biomeColor = Color.white },
-        new Biome() { biomeName = "Lava", biomeColor = new Color(0.6f, 0.1f, 0.1f) }
+        new Biome() { biomeName = "Forest", biomeTile = null },
+        new Biome() { biomeName = "Desert", biomeTile = null },
+        new Biome() { biomeName = "Snow", biomeTile = null },
+        new Biome() { biomeName = "Lava", biomeTile = null }
     };
 
-    [Header("바다 색상")]
-    public Color deepWaterColor = new Color(0f, 0.1f, 0.4f);
-    public Color normalWaterColor = new Color(0.2f, 0.4f, 0.8f);
-    public Color shallowWaterColor = new Color(0.4f, 0.7f, 1f);
+    [Header("바다 타일")]
+    public TileBase deepWaterTile;
+    public TileBase normalWaterTile;
+    public TileBase shallowWaterTile;
 
     private float offsetX;
     private float offsetY;
@@ -93,22 +94,22 @@ public class IsometricMapGenerator : MonoBehaviour
 
                 if (finalValue < 0.1f)
                 {
-                    biomeMap[x, y] = -3;
+                    biomeMap[x, y] = -3; // 깊은 바다
                     isLand[x, y] = false;
                 }
                 else if (finalValue < 0.28f)
                 {
-                    biomeMap[x, y] = 0;
+                    biomeMap[x, y] = 0;  // 일반 바다
                     isLand[x, y] = false;
                 }
                 else if (finalValue < 0.38f)
                 {
-                    biomeMap[x, y] = -2;
+                    biomeMap[x, y] = -2; // 얕은 바다
                     isLand[x, y] = false;
                 }
                 else
                 {
-                    biomeMap[x, y] = -1;
+                    biomeMap[x, y] = -1; // 미할당 땅
                     isLand[x, y] = true;
                 }
             }
@@ -264,36 +265,38 @@ public class IsometricMapGenerator : MonoBehaviour
 
     void CreateTiles()
     {
+        tilemap.ClearAllTiles();
+
         for (int x = 0; x < mapWidth; x++)
         {
             for (int y = 0; y < mapHeight; y++)
             {
-                Vector3 isoPos = new Vector3((x - y) * 0.5f, (x + y) * 0.25f, 0);
-                GameObject tile = Instantiate(tilePrefab, isoPos, Quaternion.identity, transform);
-                SpriteRenderer sr = tile.GetComponent<SpriteRenderer>();
-
                 int biomeIndex = biomeMap[x, y];
+                TileBase tileToSet = null;
 
                 if (biomeIndex == -3)
                 {
-                    sr.color = deepWaterColor;
+                    tileToSet = deepWaterTile;
                 }
                 else if (biomeIndex == 0)
                 {
-                    sr.color = normalWaterColor;
+                    tileToSet = normalWaterTile;
                 }
                 else if (biomeIndex == -2)
                 {
-                    sr.color = shallowWaterColor;
+                    tileToSet = shallowWaterTile;
                 }
                 else if (biomeIndex > 0 && biomeIndex <= biomes.Count)
                 {
-                    sr.color = biomes[biomeIndex - 1].biomeColor;
+                    tileToSet = biomes[biomeIndex - 1].biomeTile;
                 }
                 else
                 {
-                    sr.color = Color.magenta;
+                    tileToSet = null; // 이상한 경우 빈 타일로
                 }
+
+                Vector3Int pos = new Vector3Int(x, y, 0);
+                tilemap.SetTile(pos, tileToSet);
             }
         }
     }
