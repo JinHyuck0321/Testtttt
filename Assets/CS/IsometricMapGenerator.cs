@@ -6,7 +6,77 @@ using UnityEngine.Tilemaps;
 public class Biome
 {
     public string biomeName;
-    public TileBase biomeTile;  // 타일맵용 타일 추가
+    public TileBase biomeTile;
+}
+
+public class Chunk
+{
+    public int chunkX, chunkY;
+    public int size;
+    public int[,] biomeMapChunk;
+    public Tilemap tilemap;
+
+    private TileBase deepWaterTile;
+    private TileBase normalWaterTile;
+    private TileBase shallowWaterTile;
+    private List<Biome> biomes;
+
+    public Chunk(int chunkX, int chunkY, int size, Tilemap tilemap, List<Biome> biomes,
+                 TileBase deepWater, TileBase normalWater, TileBase shallowWater)
+    {
+        this.chunkX = chunkX;
+        this.chunkY = chunkY;
+        this.size = size;
+        this.tilemap = tilemap;
+        this.biomes = biomes;
+        this.deepWaterTile = deepWater;
+        this.normalWaterTile = normalWater;
+        this.shallowWaterTile = shallowWater;
+
+        biomeMapChunk = new int[size, size];
+    }
+
+    public void SetBiomeData(int[,] fullMap)
+    {
+        for (int x = 0; x < size; x++)
+        {
+            for (int y = 0; y < size; y++)
+            {
+                int mapX = chunkX * size + x;
+                int mapY = chunkY * size + y;
+                if (mapX < fullMap.GetLength(0) && mapY < fullMap.GetLength(1))
+                    biomeMapChunk[x, y] = fullMap[mapX, mapY];
+                else
+                    biomeMapChunk[x, y] = -3; // 맵 밖은 깊은 바다
+            }
+        }
+    }
+
+    public void CreateTiles()
+    {
+        tilemap.ClearAllTiles();
+
+        for (int x = 0; x < size; x++)
+        {
+            for (int y = 0; y < size; y++)
+            {
+                int biomeIndex = biomeMapChunk[x, y];
+                TileBase tileToSet = null;
+
+                if (biomeIndex == -3)
+                    tileToSet = deepWaterTile;
+                else if (biomeIndex == 0)
+                    tileToSet = normalWaterTile;
+                else if (biomeIndex == -2)
+                    tileToSet = shallowWaterTile;
+                else if (biomeIndex > 0 && biomeIndex <= biomes.Count)
+                    tileToSet = biomes[biomeIndex - 1].biomeTile;
+
+                Vector3Int pos = new Vector3Int(x, y, 0); // 청크 내부 좌표로 타일 배치
+                tilemap.SetTile(pos, tileToSet);
+            }
+        }
+    }
 }
 
 public class IsometricMapGenerator : MonoBehaviour
@@ -14,14 +84,14 @@ public class IsometricMapGenerator : MonoBehaviour
     [Header("맵 설정")]
     public int mapWidth = 100;
     public int mapHeight = 100;
-    [Range(0.001f, 0.1f)] public float noiseScale = 0.03f;
+    public int chunkSize = 16;
+
+    [Range(0.001f, 0.1f)]
+    public float noiseScale = 0.03f;
     public float islandFactor = 2f;
 
     [Header("Seed 설정 (0 = 랜덤 시드)")]
     public int seed = 0;
-
-    [Header("타일맵")]
-    public Tilemap tilemap;
 
     [Header("스무딩 필터 반복 횟수")]
     public int smoothingIterations = 3;
@@ -29,6 +99,9 @@ public class IsometricMapGenerator : MonoBehaviour
     [Header("경계 흔들림 설정")]
     public float boundaryNoiseScale = 0.1f;
     public float boundaryOffsetAmount = 0.5f;
+
+    [Header("그리드")]
+    public Grid grid;
 
     [Header("바이옴 리스트")]
     public List<Biome> biomes = new List<Biome>()
@@ -50,10 +123,15 @@ public class IsometricMapGenerator : MonoBehaviour
     private int[,] biomeMap;
     private bool[,] isLand;
 
+    private List<Chunk> chunks = new List<Chunk>();
+
     void Start()
     {
         InitializeSeed();
         GenerateMap();
+        CreateChunks();
+        AssignDataToChunks();
+        RefreshChunks();
     }
 
     void InitializeSeed()
@@ -94,22 +172,22 @@ public class IsometricMapGenerator : MonoBehaviour
 
                 if (finalValue < 0.1f)
                 {
-                    biomeMap[x, y] = -3; // 깊은 바다
+                    biomeMap[x, y] = -3;
                     isLand[x, y] = false;
                 }
                 else if (finalValue < 0.28f)
                 {
-                    biomeMap[x, y] = 0;  // 일반 바다
+                    biomeMap[x, y] = 0;
                     isLand[x, y] = false;
                 }
                 else if (finalValue < 0.38f)
                 {
-                    biomeMap[x, y] = -2; // 얕은 바다
+                    biomeMap[x, y] = -2;
                     isLand[x, y] = false;
                 }
                 else
                 {
-                    biomeMap[x, y] = -1; // 미할당 땅
+                    biomeMap[x, y] = -1;
                     isLand[x, y] = true;
                 }
             }
@@ -119,11 +197,7 @@ public class IsometricMapGenerator : MonoBehaviour
         ApplyBoundaryNoise();
 
         for (int i = 0; i < smoothingIterations; i++)
-        {
             SmoothBiomeMap();
-        }
-
-        CreateTiles();
     }
 
     void RegionGrowBiomes()
@@ -200,9 +274,7 @@ public class IsometricMapGenerator : MonoBehaviour
                     {
                         if (nx < 0 || nx >= mapWidth || ny < 0 || ny >= mapHeight) continue;
                         if (biomeMap[nx, ny] != currentBiome && biomeMap[nx, ny] > 0)
-                        {
                             isBoundary = true;
-                        }
                     }
                 }
 
@@ -263,41 +335,69 @@ public class IsometricMapGenerator : MonoBehaviour
         biomeMap = newBiomeMap;
     }
 
-    void CreateTiles()
+    void CreateChunks()
     {
-        tilemap.ClearAllTiles();
+        int chunkCountX = Mathf.CeilToInt(mapWidth / (float)chunkSize);
+        int chunkCountY = Mathf.CeilToInt(mapHeight / (float)chunkSize);
 
-        for (int x = 0; x < mapWidth; x++)
+        float tileWidth = 1f;
+        float tileHeight = 0.5f;
+
+        for (int cx = 0; cx < chunkCountX; cx++)
         {
-            for (int y = 0; y < mapHeight; y++)
+            for (int cy = 0; cy < chunkCountY; cy++)
             {
-                int biomeIndex = biomeMap[x, y];
-                TileBase tileToSet = null;
+                GameObject chunkObj = new GameObject($"Chunk_{cx}_{cy}");
 
-                if (biomeIndex == -3)
+                if (grid != null)
                 {
-                    tileToSet = deepWaterTile;
-                }
-                else if (biomeIndex == 0)
-                {
-                    tileToSet = normalWaterTile;
-                }
-                else if (biomeIndex == -2)
-                {
-                    tileToSet = shallowWaterTile;
-                }
-                else if (biomeIndex > 0 && biomeIndex <= biomes.Count)
-                {
-                    tileToSet = biomes[biomeIndex - 1].biomeTile;
+                    chunkObj.transform.parent = grid.transform;
+
+                    float isoX = (cx - cy) * chunkSize * tileWidth / 2f;
+                    float isoY = (cx + cy) * chunkSize * tileHeight / 2f;
+
+                    chunkObj.transform.localPosition = new Vector3(isoX, isoY, 0);
                 }
                 else
                 {
-                    tileToSet = null; // 이상한 경우 빈 타일로
+                    Debug.LogWarning("Grid가 연결되어 있지 않습니다. 청크가 씬 최상위에 생성됩니다.");
+                    chunkObj.transform.parent = this.transform;
+
+                    float isoX = (cx - cy) * chunkSize * tileWidth / 2f;
+                    float isoY = (cx + cy) * chunkSize * tileHeight / 2f;
+
+                    chunkObj.transform.localPosition = new Vector3(isoX, isoY, 0);
                 }
 
-                Vector3Int pos = new Vector3Int(x, y, 0);
-                tilemap.SetTile(pos, tileToSet);
+                Tilemap chunkTilemap = chunkObj.AddComponent<Tilemap>();
+                TilemapRenderer renderer = chunkObj.AddComponent<TilemapRenderer>();
+
+                renderer.sortOrder = TilemapRenderer.SortOrder.TopRight;
+
+                // 청크 간 정렬을 위해 sortingOrder 값을 수동 조정 (숫자가 클수록 뒤에 렌더링 됨)
+                // 아이소메트릭 특성상 (cx + cy)가 클수록 뒤쪽에 위치하므로 음수로 반전
+                renderer.sortingOrder = -(cx + cy);
+
+                Chunk chunk = new Chunk(cx, cy, chunkSize, chunkTilemap, biomes,
+                    deepWaterTile, normalWaterTile, shallowWaterTile);
+                chunks.Add(chunk);
             }
+        }
+    }
+
+    void AssignDataToChunks()
+    {
+        foreach (var chunk in chunks)
+        {
+            chunk.SetBiomeData(biomeMap);
+        }
+    }
+
+    void RefreshChunks()
+    {
+        foreach (var chunk in chunks)
+        {
+            chunk.CreateTiles();
         }
     }
 }
