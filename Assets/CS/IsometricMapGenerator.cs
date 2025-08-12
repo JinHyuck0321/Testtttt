@@ -187,66 +187,67 @@ public class IsometricMapGenerator : MonoBehaviour
     {
         Vector2 center = new Vector2(mapWidth / 2f, mapHeight / 2f);
 
-    biomeMap = new int[mapWidth, mapHeight];
-    isLand = new bool[mapWidth, mapHeight];
-    heightMap = new int[mapWidth, mapHeight];
+        biomeMap = new int[mapWidth, mapHeight];
+        isLand = new bool[mapWidth, mapHeight];
+        heightMap = new int[mapWidth, mapHeight];
 
-    for (int x = 0; x < mapWidth; x++)
-    {
-        for (int y = 0; y < mapHeight; y++)
+        for (int x = 0; x < mapWidth; x++)
         {
-            float dx = (x - center.x) / mapWidth * 2f;
-            float dy = (y - center.y) / mapHeight * 2f;
-            float distance = Mathf.Sqrt(dx * dx + dy * dy);
-            float islandMask = Mathf.Clamp01(1 - distance * islandFactor);
-
-            float baseNoise = Mathf.PerlinNoise((x + offsetX) * noiseScale, (y + offsetY) * noiseScale);
-            float detailNoise = Mathf.PerlinNoise((x + offsetX + 9999) * noiseScale * 3f, (y + offsetY + 9999) * noiseScale * 3f);
-            float mixedNoise = Mathf.Lerp(baseNoise, detailNoise, 0.4f);
-
-            float noiseWeight = islandMask > 0.4f ? 1f : 0.5f;
-            float jitterSeed = Mathf.Sin((x + 1) * 12.9898f + (y + 1) * 78.233f) * 43758.5453f;
-            float jitter = (jitterSeed - Mathf.Floor(jitterSeed)) * 0.15f - 0.075f;
-
-            float finalValue = Mathf.Clamp01(mixedNoise * islandMask * noiseWeight + jitter);
-
-            // 고도 결정 (배열 기준)
-            int heightLevel = 0;
-            for (int i = 0; i < heightThresholds.Length; i++)
+            for (int y = 0; y < mapHeight; y++)
             {
-                if (finalValue < heightThresholds[i])
+                float dx = (x - center.x) / mapWidth * 2f;
+                float dy = (y - center.y) / mapHeight * 2f;
+                float distance = Mathf.Sqrt(dx * dx + dy * dy);
+                float islandMask = Mathf.Clamp01(1 - distance * islandFactor);
+
+                float baseNoise = Mathf.PerlinNoise((x + offsetX) * noiseScale, (y + offsetY) * noiseScale);
+                float detailNoise = Mathf.PerlinNoise((x + offsetX + 9999) * noiseScale * 3f, (y + offsetY + 9999) * noiseScale * 3f);
+                float mixedNoise = Mathf.Lerp(baseNoise, detailNoise, 0.4f);
+
+                float noiseWeight = islandMask > 0.4f ? 1f : 0.5f;
+                float jitterSeed = Mathf.Sin((x + 1) * 12.9898f + (y + 1) * 78.233f) * 43758.5453f;
+                float jitter = (jitterSeed - Mathf.Floor(jitterSeed)) * 0.15f - 0.075f;
+
+                float finalValue = Mathf.Clamp01(mixedNoise * islandMask * noiseWeight + jitter);
+
+                // 고도 결정 (배열 기준)
+                int heightLevel = 0;
+                for (int i = 0; i < heightThresholds.Length; i++)
                 {
-                    heightLevel = i;
-                    break;
+                    if (finalValue < heightThresholds[i])
+                    {
+                        heightLevel = i;
+                        break;
+                    }
+                }
+                if (finalValue >= heightThresholds[heightThresholds.Length - 1])
+                    heightLevel = heightLayerCount - 1;
+
+
+                heightMap[x, y] = heightLevel;
+
+                if (finalValue < 0.1f)
+                {
+                    biomeMap[x, y] = -3;
+                    isLand[x, y] = false;
+                }
+                else if (finalValue < 0.28f)
+                {
+                    biomeMap[x, y] = 0;
+                    isLand[x, y] = false;
+                }
+                else if (finalValue < 0.38f)
+                {
+                    biomeMap[x, y] = -2;
+                    isLand[x, y] = false;
+                }
+                else
+                {
+                    biomeMap[x, y] = -1;
+                    isLand[x, y] = true;
                 }
             }
-            if (finalValue >= heightThresholds[heightThresholds.Length - 1])
-                heightLevel = heightThresholds.Length;
-
-            heightMap[x, y] = heightLevel;
-
-            if (finalValue < 0.1f)
-            {
-                biomeMap[x, y] = -3;
-                isLand[x, y] = false;
-            }
-            else if (finalValue < 0.28f)
-            {
-                biomeMap[x, y] = 0;
-                isLand[x, y] = false;
-            }
-            else if (finalValue < 0.38f)
-            {
-                biomeMap[x, y] = -2;
-                isLand[x, y] = false;
-            }
-            else
-            {
-                biomeMap[x, y] = -1;
-                isLand[x, y] = true;
-            }
         }
-    }
 
         RegionGrowBiomes();
         ApplyBoundaryNoise();
@@ -402,15 +403,14 @@ public class IsometricMapGenerator : MonoBehaviour
         {
             for (int cy = 0; cy < chunkCountY; cy++)
             {
+                // 청크 GameObject 생성
                 GameObject chunkObj = new GameObject($"Chunk_{cx}_{cy}");
-
                 if (grid != null)
                 {
                     chunkObj.transform.parent = grid.transform;
 
                     float isoX = (cx - cy) * chunkSize * tileWidth / 2f;
                     float isoY = (cx + cy) * chunkSize * tileHeight / 2f;
-
                     chunkObj.transform.localPosition = new Vector3(isoX, isoY, 0);
                 }
                 else
@@ -420,44 +420,67 @@ public class IsometricMapGenerator : MonoBehaviour
 
                     float isoX = (cx - cy) * chunkSize * tileWidth / 2f;
                     float isoY = (cx + cy) * chunkSize * tileHeight / 2f;
-
                     chunkObj.transform.localPosition = new Vector3(isoX, isoY, 0);
                 }
 
-                // 기본 타일맵 생성
-                Tilemap baseTilemap = chunkObj.AddComponent<Tilemap>();
-                TilemapRenderer baseRenderer = chunkObj.AddComponent<TilemapRenderer>();
-                baseRenderer.sortOrder = TilemapRenderer.SortOrder.TopRight;
-                baseRenderer.sortingOrder = -(cx + cy) * (heightLayerCount + 1) * 2;
+                // 각 고도 레이어별 타일맵 생성
+                List<Tilemap> layerTilemaps = new List<Tilemap>();
 
-                // 고도 타일맵용 자식 오브젝트 생성 리스트
-                List<Tilemap> heightTilemaps = new List<Tilemap>();
-
-                for (int i = 0; i < heightLayerCount; i++)
+                for (int h = 0; h < heightLayerCount; h++)
                 {
-                    GameObject heightLayerObj = new GameObject($"HeightLayer_{i + 1}");
-                    heightLayerObj.transform.parent = chunkObj.transform;
+                    GameObject layerObj = new GameObject($"Layer_{h}");
+                    layerObj.transform.parent = chunkObj.transform;
 
-                    // y축으로 층마다 offset (아이소메트릭 타일 절반 높이 기준으로 조금씩 올림)
-                    heightLayerObj.transform.localPosition = new Vector3(0, heightLayerYOffset * (i + 1), 0);
+                    Tilemap layerTilemap = layerObj.AddComponent<Tilemap>();
+                    TilemapRenderer renderer = layerObj.AddComponent<TilemapRenderer>();
+                    renderer.sortOrder = TilemapRenderer.SortOrder.TopRight;
+                    renderer.sortingOrder = -(cx + cy);
 
-                    Tilemap htmap = heightLayerObj.AddComponent<Tilemap>();
-                    TilemapRenderer htRenderer = heightLayerObj.AddComponent<TilemapRenderer>();
-                    htRenderer.sortOrder = TilemapRenderer.SortOrder.TopRight;
+                    // 레이어 높이 오프셋 (고도 시각 차이)
+                    float yOffset = h * heightLayerYOffset;
+                    layerObj.transform.localPosition = new Vector3(0, yOffset, 0);
 
-                    // 기본 타일맵 뒤에, 높이에 따라 앞쪽 렌더링
-                    htRenderer.sortingOrder = baseRenderer.sortingOrder + i * 2 + 1;
-
-                    heightTilemaps.Add(htmap);
+                    layerTilemaps.Add(layerTilemap);
                 }
 
-                Chunk chunk = new Chunk(cx, cy, chunkSize, baseTilemap, heightTilemaps, biomes,
-                    deepWaterTile, normalWaterTile, shallowWaterTile);
+                // 청크 내부 타일 배치
+                for (int x = 0; x < chunkSize; x++)
+                {
+                    for (int y = 0; y < chunkSize; y++)
+                    {
+                        int mapX = cx * chunkSize + x;
+                        int mapY = cy * chunkSize + y;
+                        if (mapX >= mapWidth || mapY >= mapHeight) continue;
 
-                chunks.Add(chunk);
+                        int heightLevel = heightMap[mapX, mapY];
+
+                        // 바이옴 결정
+                        int biomeIndex = biomeMap[mapX, mapY];
+                        TileBase tile = null;
+
+                        if (biomeIndex == -3)
+                            tile = deepWaterTile;
+                        else if (biomeIndex == 0)
+                            tile = normalWaterTile;
+                        else if (biomeIndex == -2)
+                            tile = shallowWaterTile;
+                        else if (biomeIndex > 0 && biomeIndex <= biomes.Count)
+                            tile = biomes[biomeIndex - 1].biomeTile;
+
+                        // 현재 높이 이하 모든 레이어에 타일 채우기
+                        int maxLayerIndex = Mathf.Min(heightLevel, layerTilemaps.Count - 1);
+
+                        for (int h = 0; h <= maxLayerIndex; h++)
+                        {
+                            layerTilemaps[h].SetTile(new Vector3Int(x, y, 0), tile);
+                        }
+
+                    }
+                }
             }
         }
     }
+
 
     void AssignDataToChunks()
     {

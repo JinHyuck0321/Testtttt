@@ -523,7 +523,7 @@ MonoBehaviour:
   normalWaterTile: {fileID: 11400000, guid: c2b28eb58b16d2b47bca9325dc29640a, type: 2}
   shallowWaterTile: {fileID: 11400000, guid: 75fc304e1d771d74aa756b90752120a3, type: 2}
   heightLayerCount: 3
-  heightLayerYOffset: 0.125
+  heightLayerYOffset: 0.25
   heightThresholds:
   - 0.1
   - 0.3
