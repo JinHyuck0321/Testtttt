@@ -500,14 +500,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4d4bea54feef54de99b075d1b138abf4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mapWidth: 128
-  mapHeight: 128
+  mapWidth: 512
+  mapHeight: 512
   chunkSize: 16
-  noiseScale: 0.02
-  islandFactor: 0.7
+  noiseScale: 0.03
+  islandFactor: 0.5
   seed: 0
   smoothingIterations: 3
-  boundaryNoiseScale: 1
+  boundaryNoiseScale: 0.1
   boundaryOffsetAmount: 0.5
   grid: {fileID: 10591032}
   biomes:
@@ -522,6 +522,14 @@ MonoBehaviour:
   deepWaterTile: {fileID: 11400000, guid: 91d0fff34fa46644587374e7f5461a43, type: 2}
   normalWaterTile: {fileID: 11400000, guid: c2b28eb58b16d2b47bca9325dc29640a, type: 2}
   shallowWaterTile: {fileID: 11400000, guid: 75fc304e1d771d74aa756b90752120a3, type: 2}
+  heightLayerCount: 3
+  heightLayerYOffset: 0.125
+  heightThresholds:
+  - 0.1
+  - 0.3
+  - 0.5
+  - 0.7
+  - 0.9
 --- !u!4 &1229774691
 Transform:
   m_ObjectHideFlags: 0
