@@ -503,10 +503,11 @@ MonoBehaviour:
   mapWidth: 512
   mapHeight: 512
   chunkSize: 16
-  noiseScale: 0.03
-  islandFactor: 0.5
+  noiseScale: 0.01
+  islandFactor: 0.6
   seed: 0
   smoothingIterations: 3
+  heightSmoothingIterations: 3
   boundaryNoiseScale: 0.1
   boundaryOffsetAmount: 0.5
   grid: {fileID: 10591032}
@@ -522,13 +523,18 @@ MonoBehaviour:
   deepWaterTile: {fileID: 11400000, guid: 91d0fff34fa46644587374e7f5461a43, type: 2}
   normalWaterTile: {fileID: 11400000, guid: c2b28eb58b16d2b47bca9325dc29640a, type: 2}
   shallowWaterTile: {fileID: 11400000, guid: 75fc304e1d771d74aa756b90752120a3, type: 2}
-  heightLayerCount: 3
+  heightLayerCount: 10
   heightLayerYOffset: 0.25
   heightThresholds:
-  - 0.1
-  - 0.3
+  - 0.4
+  - 0.45
   - 0.5
+  - 0.55
+  - 0.6
+  - 0.65
   - 0.7
+  - 0.75
+  - 0.8
   - 0.9
 --- !u!4 &1229774691
 Transform:

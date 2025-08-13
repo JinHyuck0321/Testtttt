@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: bfc19e4ab8c7eea40b62b51728e2b4cf
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures: []
+  nonModifiableTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 275877
+  packageName: Mini Shadow
+  packageVersion: 1.0
+  assetPath: Assets/MiniGames/Shadow/Shader/ARShadow.shader
+  uploadId: 641067

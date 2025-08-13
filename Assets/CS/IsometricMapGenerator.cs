@@ -122,6 +122,8 @@ public class IsometricMapGenerator : MonoBehaviour
 
     [Header("스무딩 필터 반복 횟수")]
     public int smoothingIterations = 3;
+    [Header("고도 스무딩 반복 횟수")]
+    public int heightSmoothingIterations = 2;
 
     [Header("경계 흔들림 설정")]
     public float boundaryNoiseScale = 0.1f;
@@ -254,6 +256,8 @@ public class IsometricMapGenerator : MonoBehaviour
 
         for (int i = 0; i < smoothingIterations; i++)
             SmoothBiomeMap();
+        for (int i = 0; i < heightSmoothingIterations; i++)
+            SmoothHeightMap();
     }
 
     void RegionGrowBiomes()
@@ -390,6 +394,54 @@ public class IsometricMapGenerator : MonoBehaviour
 
         biomeMap = newBiomeMap;
     }
+    void SmoothHeightMap()
+    {
+        int[,] newHeightMap = new int[mapWidth, mapHeight];
+
+        for (int x = 0; x < mapWidth; x++)
+        {
+            for (int y = 0; y < mapHeight; y++)
+            {
+                // 바다(-3, 0, -2)는 스무딩 제외
+                if (biomeMap[x, y] <= 0)
+                {
+                    newHeightMap[x, y] = heightMap[x, y];
+                    continue;
+                }
+
+                Dictionary<int, int> countMap = new Dictionary<int, int>();
+
+                for (int nx = x - 1; nx <= x + 1; nx++)
+                {
+                    for (int ny = y - 1; ny <= y + 1; ny++)
+                    {
+                        if (nx < 0 || nx >= mapWidth || ny < 0 || ny >= mapHeight) continue;
+
+                        int h = heightMap[nx, ny];
+                        if (!countMap.ContainsKey(h))
+                            countMap[h] = 0;
+                        countMap[h]++;
+                    }
+                }
+
+                // 최빈값 계산
+                int dominantHeight = heightMap[x, y];
+                int maxCount = 0;
+                foreach (var pair in countMap)
+                {
+                    if (pair.Value > maxCount)
+                    {
+                        maxCount = pair.Value;
+                        dominantHeight = pair.Key;
+                    }
+                }
+
+                newHeightMap[x, y] = dominantHeight;
+            }
+        }
+
+        heightMap = newHeightMap;
+    }
 
     void CreateChunks()
     {
@@ -436,7 +488,7 @@ public class IsometricMapGenerator : MonoBehaviour
                     renderer.sortOrder = TilemapRenderer.SortOrder.TopRight;
                     renderer.sortingOrder = -(cx + cy);
 
-                    // 레이어 높이 오프셋 (고도 시각 차이)
+                    // 레이어 높이 오프셋
                     float yOffset = h * heightLayerYOffset;
                     layerObj.transform.localPosition = new Vector3(0, yOffset, 0);
 
@@ -450,7 +502,10 @@ public class IsometricMapGenerator : MonoBehaviour
                     {
                         int mapX = cx * chunkSize + x;
                         int mapY = cy * chunkSize + y;
-                        if (mapX >= mapWidth || mapY >= mapHeight) continue;
+
+                        // 인덱스 범위 체크
+                        if (mapX < 0 || mapY < 0 || mapX >= mapWidth || mapY >= mapHeight)
+                            continue;
 
                         int heightLevel = heightMap[mapX, mapY];
 
@@ -467,6 +522,12 @@ public class IsometricMapGenerator : MonoBehaviour
                         else if (biomeIndex > 0 && biomeIndex <= biomes.Count)
                             tile = biomes[biomeIndex - 1].biomeTile;
 
+                        // 바다 타일이면 고도 강제 0
+                        if (biomeIndex == -3 || biomeIndex == -2 || biomeIndex == 0)
+                        {
+                            heightLevel = 0;
+                        }
+
                         // 현재 높이 이하 모든 레이어에 타일 채우기
                         int maxLayerIndex = Mathf.Min(heightLevel, layerTilemaps.Count - 1);
 
@@ -474,7 +535,6 @@ public class IsometricMapGenerator : MonoBehaviour
                         {
                             layerTilemaps[h].SetTile(new Vector3Int(x, y, 0), tile);
                         }
-
                     }
                 }
             }

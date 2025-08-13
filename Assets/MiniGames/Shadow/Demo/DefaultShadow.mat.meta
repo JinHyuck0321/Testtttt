@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 26a51fb62ebde7c43b77d49bc988a219
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 275877
+  packageName: Mini Shadow
+  packageVersion: 1.0
+  assetPath: Assets/MiniGames/Shadow/Demo/DefaultShadow.mat
+  uploadId: 641067

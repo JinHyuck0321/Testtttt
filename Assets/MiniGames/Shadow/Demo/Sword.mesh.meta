@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 9106f229627fc724297f8bf613a73d1a
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 4300000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 275877
+  packageName: Mini Shadow
+  packageVersion: 1.0
+  assetPath: Assets/MiniGames/Shadow/Demo/Sword.mesh
+  uploadId: 641067
