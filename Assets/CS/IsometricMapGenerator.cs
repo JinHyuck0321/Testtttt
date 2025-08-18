@@ -109,8 +109,8 @@ public class Chunk
 public class IsometricMapGenerator : MonoBehaviour
 {
     [Header("맵 설정")]
-    public int mapWidth = 100;
-    public int mapHeight = 100;
+    public int mapWidth;
+    public int mapHeight;
     public int chunkSize = 16;
 
     [Range(0.001f, 0.1f)]
@@ -168,6 +168,8 @@ public class IsometricMapGenerator : MonoBehaviour
 
     void Start()
     {
+        mapHeight = mapHeight * chunkSize;
+        mapWidth = mapWidth * chunkSize;
         InitializeSeed();
         GenerateMap();
         CreateChunks();

@@ -500,8 +500,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4d4bea54feef54de99b075d1b138abf4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mapWidth: 512
-  mapHeight: 512
+  mapWidth: 8
+  mapHeight: 8
   chunkSize: 16
   noiseScale: 0.01
   islandFactor: 0.6
