@@ -457,12 +457,11 @@ public class IsometricMapGenerator : MonoBehaviour
         {
             for (int cy = 0; cy < chunkCountY; cy++)
             {
-                // 청크 GameObject 생성
                 GameObject chunkObj = new GameObject($"Chunk_{cx}_{cy}");
+
                 if (grid != null)
                 {
                     chunkObj.transform.parent = grid.transform;
-
                     float isoX = (cx - cy) * chunkSize * tileWidth / 2f;
                     float isoY = (cx + cy) * chunkSize * tileHeight / 2f;
                     chunkObj.transform.localPosition = new Vector3(isoX, isoY, 0);
@@ -471,13 +470,11 @@ public class IsometricMapGenerator : MonoBehaviour
                 {
                     Debug.LogWarning("Grid가 연결되어 있지 않습니다. 청크가 씬 최상위에 생성됩니다.");
                     chunkObj.transform.parent = this.transform;
-
                     float isoX = (cx - cy) * chunkSize * tileWidth / 2f;
                     float isoY = (cx + cy) * chunkSize * tileHeight / 2f;
                     chunkObj.transform.localPosition = new Vector3(isoX, isoY, 0);
                 }
 
-                // 각 고도 레이어별 타일맵 생성
                 List<Tilemap> layerTilemaps = new List<Tilemap>();
 
                 for (int h = 0; h < heightLayerCount; h++)
@@ -490,14 +487,12 @@ public class IsometricMapGenerator : MonoBehaviour
                     renderer.sortOrder = TilemapRenderer.SortOrder.TopRight;
                     renderer.sortingOrder = -(cx + cy);
 
-                    // 레이어 높이 오프셋
                     float yOffset = h * heightLayerYOffset;
                     layerObj.transform.localPosition = new Vector3(0, yOffset, 0);
 
                     layerTilemaps.Add(layerTilemap);
                 }
 
-                // 청크 내부 타일 배치
                 for (int x = 0; x < chunkSize; x++)
                 {
                     for (int y = 0; y < chunkSize; y++)
@@ -505,13 +500,10 @@ public class IsometricMapGenerator : MonoBehaviour
                         int mapX = cx * chunkSize + x;
                         int mapY = cy * chunkSize + y;
 
-                        // 인덱스 범위 체크
                         if (mapX < 0 || mapY < 0 || mapX >= mapWidth || mapY >= mapHeight)
                             continue;
 
                         int heightLevel = heightMap[mapX, mapY];
-
-                        // 바이옴 결정
                         int biomeIndex = biomeMap[mapX, mapY];
                         TileBase tile = null;
 
@@ -524,24 +516,24 @@ public class IsometricMapGenerator : MonoBehaviour
                         else if (biomeIndex > 0 && biomeIndex <= biomes.Count)
                             tile = biomes[biomeIndex - 1].biomeTile;
 
-                        // 바다 타일이면 고도 강제 0
-                        if (biomeIndex == -3 || biomeIndex == -2 || biomeIndex == 0)
-                        {
+                        // 바다 타일일 경우 고도 강제 0
+                        if (biomeIndex <= 0)
                             heightLevel = 0;
-                        }
 
-                        // 현재 높이 이하 모든 레이어에 타일 채우기
-                        int maxLayerIndex = Mathf.Min(heightLevel, layerTilemaps.Count - 1);
+                        Vector3Int tilePos = new Vector3Int(x, y, 0);
 
-                        for (int h = 0; h <= maxLayerIndex; h++)
+                        // 0부터 heightLevel까지 모두 채워줌
+                        for (int h = 0; h <= heightLevel && h < layerTilemaps.Count; h++)
                         {
-                            layerTilemaps[h].SetTile(new Vector3Int(x, y, 0), tile);
+                            layerTilemaps[h].SetTile(tilePos, tile);
                         }
                     }
                 }
             }
         }
     }
+
+
 
 
     void AssignDataToChunks()
